@@ -10,43 +10,38 @@ A standalone Python application for recording income and expenses, categorizing 
 
 ### Prerequisites
 
-- Python 3.8+
-- [pipenv](https://pipenv.pypa.io/)
+- Python 3.8 or newer
 
 ### Installation
 
 ```bash
 git clone <repo-url>
 cd personal-finance-tracker-project
-pipenv install --dev
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-This creates a virtual environment and installs all production and dev dependencies.
+On Windows, activate the venv with `.venv\Scripts\activate` instead.
 
 ### Running tests
 
-```bash
-pipenv run pytest
-```
-
-Or activate the shell first:
+With the venv activated:
 
 ```bash
-pipenv shell
 pytest
 ```
 
 ### Adding dependencies
 
-```bash
-# Production dependency
-pipenv install <package-name>
+With the venv activated:
 
-# Dev-only dependency
-pipenv install --dev <package-name>
+```bash
+pip install <package-name>
+pip freeze > requirements.txt
 ```
 
-Commit both `Pipfile` and `Pipfile.lock` after adding dependencies.
+Commit `requirements.txt` after adding dependencies.
 
 ## Team
 
