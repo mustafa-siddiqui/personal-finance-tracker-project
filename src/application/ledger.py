@@ -1,15 +1,14 @@
-"""Ledger — records, retrieves, and deletes transactions (F1, F2, F4).
-
-This file currently implements F1 (record). F2 (list_all/get) and F4 (delete) will be added later.
-"""
+"""Ledger — records, retrieves, and deletes transactions (F1, F2, F4)."""
 
 from __future__ import annotations
 
 from typing import List
 from uuid import UUID, uuid4
 
+from src.domain.exceptions import ValidationError
 from src.domain.transaction import Transaction
 from src.domain.validator import Validator
+
 from src.repository.transaction_repository_interface import (
     TransactionRepositoryInterface,
 )
@@ -61,7 +60,28 @@ class Ledger:
         raise NotImplementedError
 
     def get(self, txn_id: UUID) -> Transaction:
-        raise NotImplementedError
+        """
+        Retrieve a single transaction by UUID.
+
+        Raises:
+            ValidationError: If txn_id is not a UUID instance.
+            TransactionNotFound: If no transaction exists for txn_id.
+        """
+        if not isinstance(txn_id, UUID):
+            raise ValidationError(field="id", message="must be a UUID")
+
+        return self._repo.get(txn_id)
 
     def delete(self, txn_id: UUID) -> None:
-        raise NotImplementedError
+        """
+        Delete a transaction by UUID and persist the updated repository state.
+
+        Raises:
+            ValidationError: If txn_id is not a UUID instance.
+            TransactionNotFound: If no transaction exists for txn_id.
+        """
+        if not isinstance(txn_id, UUID):
+            raise ValidationError(field="id", message="must be a UUID")
+
+        self._repo.delete(txn_id)
+        self._repo.save()
