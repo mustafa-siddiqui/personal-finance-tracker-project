@@ -8,7 +8,7 @@ This document captures the software (with versions) used to develop and test the
 
 | Software | Version | Purpose |
 |----------|---------|---------|
-| Python | 3.8.10 | Implementation language |
+| Python | >=3.8.10 | Implementation language |
 | Flask | 3.0.3 | Web framework for the UI layer (F7) |
 | pip | 20.0.2 | Package manager |
 
@@ -23,11 +23,12 @@ This document captures the software (with versions) used to develop and test the
 
 `uuid`, `decimal`, `datetime`, `json`, `os`, `pathlib`, `typing`, `enum`, `abc`, `unittest.mock` — all from the Python 3.8 standard library, no version pinning required.
 
-### Operating system used during development
+### Operating systems used during development
 
 | OS | Version |
 |----|---------|
 | Linux | 6.6.87.2-microsoft-standard-WSL2 (Ubuntu 20.04) |
+| MacOS | Tahoe 26.5 |
 
 The test suite is OS-agnostic — `pytest`'s `tmp_path` fixture handles per-test temporary directories portably. Tests should pass on any Linux, macOS, or Windows machine running Python 3.8 or newer.
 
