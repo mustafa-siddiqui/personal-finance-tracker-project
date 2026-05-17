@@ -24,12 +24,19 @@ pip install -r requirements.txt
 
 On Windows, activate the venv with `.venv\Scripts\activate` instead.
 
-### Running tests
+### Running the test suite
 
-With the venv activated:
+With the virtual environment activated:
 
 ```bash
-pytest
+# Run all unit tests
+make test
+
+# Run all unit tests with verbose output
+make test-verbose
+
+# Run tests for a single unit with verbose output
+pytest src/domain/test_transaction.py -v
 ```
 
 ### Adding dependencies
