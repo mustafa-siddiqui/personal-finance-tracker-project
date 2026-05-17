@@ -14,7 +14,7 @@ from src.domain.exceptions import ValidationError
 from src.domain.transaction import Transaction, TransactionType
 from src.domain.validator import Validator
 from src.repository.transaction_repository_interface import (
-    TransactionRepositoryInterface,
+    TransactionRepositoryInterface
 )
 
 
@@ -211,3 +211,92 @@ class TestRecordRepositoryInteraction:
             date="2026-04-27",
         )
         mock_repo.save.assert_called_once()
+
+class TestLedgerGet:
+    def test_get_returns_transaction_when_found(
+        self, ledger: Ledger, mock_repo: MagicMock
+    ) -> None:
+        txn_id = UUID("12345678-1234-5678-1234-567812345678")
+        expected = Transaction(
+            id=txn_id,
+            type=TransactionType.EXPENSE,
+            amount=Decimal("42.50"),
+            category="food",
+            description="Groceries",
+            date=datetime.date(2026, 4, 27),
+        )
+        mock_repo.get.return_value = expected
+
+        result = ledger.get(str(txn_id))
+
+        assert result is expected
+        mock_repo.get.assert_called_once_with(txn_id)
+
+    def test_get_validates_transaction_id(
+        self, ledger: Ledger, mock_validator: MagicMock
+    ) -> None:
+        txn_id = UUID("12345678-1234-5678-1234-567812345678")
+
+        ledger.get(str(txn_id))
+
+        mock_validator.validate_id.assert_called_once_with(str(txn_id))
+
+    def test_get_propagates_validation_error(
+        self, ledger: Ledger, mock_validator: MagicMock, mock_repo: MagicMock
+    ) -> None:
+        mock_validator.validate_id.side_effect = ValidationError(
+            field="id", message="invalid UUID"
+        )
+
+        with pytest.raises(ValidationError):
+            ledger.get("bad-id")
+
+        mock_repo.get.assert_not_called()
+
+
+class TestLedgerDelete:
+    def test_delete_removes_transaction_and_saves(
+        self, ledger: Ledger, mock_repo: MagicMock
+    ) -> None:
+        txn_id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_repo.delete.return_value = True
+
+        result = ledger.delete(str(txn_id))
+
+        assert result is True
+        mock_repo.delete.assert_called_once_with(txn_id)
+        mock_repo.save.assert_called_once()
+
+    def test_delete_validates_transaction_id(
+        self, ledger: Ledger, mock_validator: MagicMock
+    ) -> None:
+        txn_id = UUID("12345678-1234-5678-1234-567812345678")
+
+        ledger.delete(str(txn_id))
+
+        mock_validator.validate_id.assert_called_once_with(str(txn_id))
+
+    def test_delete_does_not_save_when_transaction_not_found(
+        self, ledger: Ledger, mock_repo: MagicMock
+    ) -> None:
+        txn_id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_repo.delete.return_value = False
+
+        result = ledger.delete(str(txn_id))
+
+        assert result is False
+        mock_repo.delete.assert_called_once_with(txn_id)
+        mock_repo.save.assert_not_called()
+
+    def test_delete_propagates_validation_error(
+        self, ledger: Ledger, mock_validator: MagicMock, mock_repo: MagicMock
+    ) -> None:
+        mock_validator.validate_id.side_effect = ValidationError(
+            field="id", message="invalid UUID"
+        )
+
+        with pytest.raises(ValidationError):
+            ledger.delete("bad-id")
+
+        mock_repo.delete.assert_not_called()
+        mock_repo.save.assert_not_called()
