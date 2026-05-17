@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 from src.domain.exceptions import ValidationError
 from src.domain.transaction import Transaction
 from src.domain.validator import Validator
-
 from src.repository.transaction_repository_interface import (
     TransactionRepositoryInterface,
 )

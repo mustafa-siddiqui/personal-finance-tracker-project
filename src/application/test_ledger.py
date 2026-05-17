@@ -14,7 +14,7 @@ from src.domain.exceptions import ValidationError
 from src.domain.transaction import Transaction, TransactionType
 from src.domain.validator import Validator
 from src.repository.transaction_repository_interface import (
-    TransactionRepositoryInterface
+    TransactionRepositoryInterface,
 )
 
 
@@ -211,6 +211,7 @@ class TestRecordRepositoryInteraction:
             date="2026-04-27",
         )
         mock_repo.save.assert_called_once()
+
 
 class TestLedgerGet:
     def test_get_returns_transaction_when_found(
