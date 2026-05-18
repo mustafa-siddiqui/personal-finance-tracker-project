@@ -217,6 +217,7 @@ class TestLedgerGet:
     def test_get_returns_transaction_when_found(
         self, ledger: Ledger, mock_repo: MagicMock
     ) -> None:
+        """get() returns whatever the repository returns for the given UUID."""
         txn_id = UUID("12345678-1234-5678-1234-567812345678")
         expected = Transaction(
             id=txn_id,
@@ -228,30 +229,18 @@ class TestLedgerGet:
         )
         mock_repo.get.return_value = expected
 
-        result = ledger.get(str(txn_id))
+        result = ledger.get(txn_id)
 
         assert result is expected
         mock_repo.get.assert_called_once_with(txn_id)
 
-    def test_get_validates_transaction_id(
-        self, ledger: Ledger, mock_validator: MagicMock
+    def test_get_rejects_non_uuid_input(
+        self, ledger: Ledger, mock_repo: MagicMock
     ) -> None:
-        txn_id = UUID("12345678-1234-5678-1234-567812345678")
-
-        ledger.get(str(txn_id))
-
-        mock_validator.validate_id.assert_called_once_with(str(txn_id))
-
-    def test_get_propagates_validation_error(
-        self, ledger: Ledger, mock_validator: MagicMock, mock_repo: MagicMock
-    ) -> None:
-        mock_validator.validate_id.side_effect = ValidationError(
-            field="id", message="invalid UUID"
-        )
-
-        with pytest.raises(ValidationError):
-            ledger.get("bad-id")
-
+        """Ledger.get() expects a UUID; passing a string raises ValidationError defensively."""
+        with pytest.raises(ValidationError) as exc_info:
+            ledger.get("12345678-1234-5678-1234-567812345678")  # type: ignore[arg-type]
+        assert exc_info.value.field == "id"
         mock_repo.get.assert_not_called()
 
 
@@ -259,45 +248,31 @@ class TestLedgerDelete:
     def test_delete_removes_transaction_and_saves(
         self, ledger: Ledger, mock_repo: MagicMock
     ) -> None:
+        """delete() forwards the UUID to the repo and persists the change."""
         txn_id = UUID("12345678-1234-5678-1234-567812345678")
-        mock_repo.delete.return_value = True
 
-        result = ledger.delete(str(txn_id))
+        ledger.delete(txn_id)
 
-        assert result is True
         mock_repo.delete.assert_called_once_with(txn_id)
         mock_repo.save.assert_called_once()
 
-    def test_delete_validates_transaction_id(
-        self, ledger: Ledger, mock_validator: MagicMock
-    ) -> None:
-        txn_id = UUID("12345678-1234-5678-1234-567812345678")
-
-        ledger.delete(str(txn_id))
-
-        mock_validator.validate_id.assert_called_once_with(str(txn_id))
-
-    def test_delete_does_not_save_when_transaction_not_found(
+    def test_delete_calls_delete_before_save(
         self, ledger: Ledger, mock_repo: MagicMock
     ) -> None:
+        """Order matters: the repo's delete() is invoked before save()."""
         txn_id = UUID("12345678-1234-5678-1234-567812345678")
-        mock_repo.delete.return_value = False
 
-        result = ledger.delete(str(txn_id))
+        ledger.delete(txn_id)
 
-        assert result is False
-        mock_repo.delete.assert_called_once_with(txn_id)
-        mock_repo.save.assert_not_called()
+        assert mock_repo.method_calls[0][0] == "delete"
+        assert mock_repo.method_calls[1][0] == "save"
 
-    def test_delete_propagates_validation_error(
-        self, ledger: Ledger, mock_validator: MagicMock, mock_repo: MagicMock
+    def test_delete_rejects_non_uuid_input(
+        self, ledger: Ledger, mock_repo: MagicMock
     ) -> None:
-        mock_validator.validate_id.side_effect = ValidationError(
-            field="id", message="invalid UUID"
-        )
-
-        with pytest.raises(ValidationError):
-            ledger.delete("bad-id")
-
+        """Ledger.delete() expects a UUID; passing a string raises ValidationError defensively."""
+        with pytest.raises(ValidationError) as exc_info:
+            ledger.delete("12345678-1234-5678-1234-567812345678")  # type: ignore[arg-type]
+        assert exc_info.value.field == "id"
         mock_repo.delete.assert_not_called()
         mock_repo.save.assert_not_called()
