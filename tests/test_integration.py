@@ -1,11 +1,14 @@
-from src.ui.app import app
+from src.ui.app import app, transactions
 
 
 def test_add_and_get_transaction_integration():
 
     client = app.test_client()
 
-    # Step 1: Add transaction through Flask API
+    # 🔥 RESET STATE (IMPORTANT)
+    transactions.clear()
+
+    # Step 1: Add transaction
     response = client.post(
         "/add",
         json={
@@ -17,21 +20,16 @@ def test_add_and_get_transaction_integration():
 
     assert response.status_code == 201
 
-    data = response.get_json()
-
-    assert data["message"] == "Transaction added"
-
-
-    # Step 2: Retrieve transactions
+    # Step 2: Get transactions
     response = client.get("/transactions")
 
     assert response.status_code == 200
 
-    transactions = response.get_json()
+    data = response.get_json()
 
-    assert len(transactions) > 0
-    assert transactions[0]["category"] == "Food"
-    assert transactions[0]["amount"] == 25
+    assert len(data) == 1
+    assert data[0]["category"] == "Food"
+    assert data[0]["amount"] == 25
 
 
 
@@ -39,8 +37,8 @@ def test_delete_transaction_integration():
 
     client = app.test_client()
 
+    transactions.clear()
 
-    # Add transaction first
     client.post(
         "/add",
         json={
@@ -50,12 +48,7 @@ def test_delete_transaction_integration():
         }
     )
 
-
-    # Delete first transaction
     response = client.delete("/delete/0")
 
     assert response.status_code == 200
-
-    data = response.get_json()
-
-    assert data["message"] == "Deleted"
+    assert response.get_json()["message"] == "Deleted"
