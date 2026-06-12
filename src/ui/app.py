@@ -1,8 +1,34 @@
+from pathlib import Path
+
 from flask import Flask, request, jsonify
+
+from src.application.ledger import Ledger
+from src.domain.validator import Validator
+from src.repository.json_transaction_repository import JsonTransactionRepository
 
 app = Flask(__name__)
 
-transactions = []
+ALLOWED_CATEGORIES = [
+    "salary",
+    "freelance",
+    "food",
+    "transportation",
+    "housing",
+    "utilities",
+    "entertainment",
+    "healthcare",
+    "education",
+    "other",
+]
+
+DATA_PATH = Path("data") / "transactions.json"
+
+validator = Validator(allowed_categories=ALLOWED_CATEGORIES)
+
+repo = JsonTransactionRepository(path=DATA_PATH)
+repo.load()
+
+ledger = Ledger(repo=repo, validator=validator)
 
 
 @app.route("/")
