@@ -38,15 +38,27 @@ def home():
 
 @app.route("/add", methods=["POST"])
 def add_transaction():
-
     data = request.json
 
-    if "amount" not in data:
-        return jsonify({"error": "Amount is required"}), 400
+    try:
+        txn = ledger.record(
+            type=data["type"],
+            amount=data["amount"],
+            category=data["category"],
+            description=data["description"],
+            date=data["date"],
+        )
 
-    transactions.append(data)
+        return jsonify({
+            "message": "Transaction added",
+            "id": str(txn.id),
+        }), 201
 
-    return jsonify({"message": "Transaction added"}), 201
+    except KeyError as e:
+        return jsonify({"error": f"Missing field: {e.args[0]}"}), 400
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route("/transactions")
