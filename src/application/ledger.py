@@ -1,4 +1,4 @@
-"""Ledger — records, retrieves, and deletes transactions (F1, F2, F4)."""
+"""Ledger — records, retrieves, lists, and deletes transactions (F1, F2, F4)."""
 
 from __future__ import annotations
 
@@ -30,12 +30,7 @@ class Ledger:
         description: str,
         date: str,
     ) -> Transaction:
-        """Validate raw string inputs, build a Transaction with a fresh UUID,
-        persist it via the repository, and return it.
-
-        Raises:
-            ValidationError: If any field fails validation.
-        """
+        """Validate raw inputs, build a Transaction, save it, and return it."""
         validated_type = self._validator.validate_type(type)
         validated_amount = self._validator.validate_amount(amount)
         validated_category = self._validator.validate_category(category)
@@ -50,35 +45,24 @@ class Ledger:
             description=validated_description,
             date=validated_date,
         )
+
         self._repo.add(txn)
         self._repo.save()
         return txn
 
-    # F2 / F4 — signatures left for the team to implement
     def list_all(self) -> List[Transaction]:
-    return self._repo.list_all()
+        """Return all transactions from the repository."""
+        return self._repo.list_all()
 
     def get(self, txn_id: UUID) -> Transaction:
-        """
-        Retrieve a single transaction by UUID.
-
-        Raises:
-            ValidationError: If txn_id is not a UUID instance.
-            TransactionNotFound: If no transaction exists for txn_id.
-        """
+        """Retrieve a single transaction by UUID."""
         if not isinstance(txn_id, UUID):
             raise ValidationError(field="id", message="must be a UUID")
 
         return self._repo.get(txn_id)
 
     def delete(self, txn_id: UUID) -> None:
-        """
-        Delete a transaction by UUID and persist the updated repository state.
-
-        Raises:
-            ValidationError: If txn_id is not a UUID instance.
-            TransactionNotFound: If no transaction exists for txn_id.
-        """
+        """Delete a transaction by UUID and save the repository."""
         if not isinstance(txn_id, UUID):
             raise ValidationError(field="id", message="must be a UUID")
 
