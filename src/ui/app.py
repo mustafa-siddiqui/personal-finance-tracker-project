@@ -1,11 +1,12 @@
-from collections import defaultdict
-from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
 from flask import Flask, request, jsonify
 
+from src.application.analyzer import Analyzer
+from src.application.balance_calculator import BalanceCalculator
 from src.application.ledger import Ledger
+from src.domain.transaction import TransactionType
 from src.domain.validator import Validator
 from src.repository.json_transaction_repository import JsonTransactionRepository
 
@@ -30,10 +31,6 @@ def get_transaction_type(txn):
     return txn.type.value if hasattr(txn.type, "value") else str(txn.type)
 
 
-def get_transaction_amount(txn):
-    return Decimal(str(txn.amount))
-
-
 def transaction_to_dict(txn):
     return {
         "id": str(txn.id),
@@ -45,84 +42,13 @@ def transaction_to_dict(txn):
     }
 
 
-def compute_balance(transactions):
-    income = Decimal("0.00")
-    expenses = Decimal("0.00")
-
-    for txn in transactions:
-        txn_type = get_transaction_type(txn)
-        amount = get_transaction_amount(txn)
-
-        if txn_type == "income":
-            income += amount
-        elif txn_type == "expense":
-            expenses += amount
-
+def monthly_summary_to_dict(summary):
     return {
-        "income": f"{income:.2f}",
-        "expenses": f"{expenses:.2f}",
-        "balance": f"{income - expenses:.2f}",
-    }
-
-
-def get_year_month(txn):
-    date_text = str(txn.date)
-    year = int(date_text[0:4])
-    month = int(date_text[5:7])
-    return year, month
-
-
-def compute_analytics(transactions):
-    category_totals = defaultdict(Decimal)
-    monthly_totals = defaultdict(
-        lambda: {
-            "income": Decimal("0.00"),
-            "expenses": Decimal("0.00"),
-        }
-    )
-
-    for txn in transactions:
-        txn_type = get_transaction_type(txn)
-        amount = get_transaction_amount(txn)
-        year, month = get_year_month(txn)
-
-        if txn_type == "expense":
-            category_totals[txn.category] += amount
-            monthly_totals[(year, month)]["expenses"] += amount
-        elif txn_type == "income":
-            monthly_totals[(year, month)]["income"] += amount
-
-    category_totals_response = {
-        category: f"{amount:.2f}"
-        for category, amount in category_totals.items()
-    }
-
-    highest_spending_category = None
-    if category_totals:
-        highest_spending_category = max(
-            category_totals,
-            key=lambda category: category_totals[category],
-        )
-
-    monthly_trends = []
-    for (year, month), totals in sorted(monthly_totals.items()):
-        income = totals["income"]
-        expenses = totals["expenses"]
-
-        monthly_trends.append(
-            {
-                "year": year,
-                "month": month,
-                "income": f"{income:.2f}",
-                "expenses": f"{expenses:.2f}",
-                "net": f"{income - expenses:.2f}",
-            }
-        )
-
-    return {
-        "category_totals": category_totals_response,
-        "highest_spending_category": highest_spending_category,
-        "monthly_trends": monthly_trends,
+        "year": summary.year,
+        "month": summary.month,
+        "total_income": str(summary.total_income),
+        "total_expenses": str(summary.total_expenses),
+        "net": str(summary.net),
     }
 
 
@@ -177,12 +103,7 @@ def create_app(data_path=DATA_PATH):
         repo.load()
         transactions = ledger.list_all()
 
-        return jsonify(
-            [
-                transaction_to_dict(txn)
-                for txn in transactions
-            ]
-        )
+        return jsonify([transaction_to_dict(txn) for txn in transactions])
 
     @app.route("/delete/<txn_id>", methods=["DELETE"])
     def delete_transaction(txn_id):
@@ -201,17 +122,56 @@ def create_app(data_path=DATA_PATH):
     @app.route("/balance", methods=["GET"])
     def get_balance():
         repo.load()
-        transactions = ledger.list_all()
+        balance = BalanceCalculator.calculate(repo.list_all())
 
-        return jsonify(compute_balance(transactions))
+        return jsonify({"balance": str(balance)})
 
     @app.route("/analytics", methods=["GET"])
     @app.route("/analyze", methods=["GET"])
     def get_analytics():
         repo.load()
-        transactions = ledger.list_all()
 
-        return jsonify(compute_analytics(transactions))
+        analyzer = Analyzer(repo=repo)
+
+        category_totals = analyzer.category_totals(TransactionType.EXPENSE)
+        highest_spending = analyzer.highest_spending_category()
+        monthly_trends = analyzer.monthly_trends()
+
+        highest_spending_response = None
+        if highest_spending is not None:
+            highest_spending_response = {
+                "category": highest_spending.category,
+                "total": str(highest_spending.total),
+            }
+
+        return jsonify(
+            {
+                "category_totals": {
+                    category: str(total)
+                    for category, total in category_totals.items()
+                },
+                "highest_spending_category": highest_spending_response,
+                "monthly_trends": [
+                    monthly_summary_to_dict(summary)
+                    for summary in monthly_trends
+                ],
+            }
+        )
+
+    @app.route("/analytics/monthly-summary", methods=["GET"])
+    def get_monthly_summary():
+        repo.load()
+
+        year = request.args.get("year", type=int)
+        month = request.args.get("month", type=int)
+
+        if year is None or month is None:
+            return jsonify({"error": "year and month are required"}), 400
+
+        analyzer = Analyzer(repo=repo)
+        summary = analyzer.monthly_summary(year, month)
+
+        return jsonify(monthly_summary_to_dict(summary))
 
     return app
 
