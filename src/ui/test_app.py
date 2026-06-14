@@ -1,14 +1,37 @@
 import pytest
 
-from src.ui.app import app
+from src.ui.app import create_app
 
 
 @pytest.fixture
-def client():
+def client(tmp_path):
+    test_data_path = tmp_path / "transactions.json"
+
+    app = create_app(data_path=test_data_path)
     app.config["TESTING"] = True
 
     with app.test_client() as client:
         yield client
+
+
+def valid_expense(description="Test food transaction"):
+    return {
+        "type": "expense",
+        "amount": "100.00",
+        "category": "food",
+        "description": description,
+        "date": "2026-06-11",
+    }
+
+
+def valid_income(description="Test salary transaction"):
+    return {
+        "type": "income",
+        "amount": "500.00",
+        "category": "salary",
+        "description": description,
+        "date": "2026-06-11",
+    }
 
 
 def test_home_page(client):
@@ -19,16 +42,7 @@ def test_home_page(client):
 
 
 def test_add_transaction_success(client):
-    response = client.post(
-        "/add",
-        json={
-            "type": "expense",
-            "amount": "100.00",
-            "category": "food",
-            "description": "Test food transaction",
-            "date": "2026-06-11",
-        },
-    )
+    response = client.post("/add", json=valid_expense())
 
     assert response.status_code == 201
 
@@ -40,15 +54,10 @@ def test_add_transaction_success(client):
 
 
 def test_add_transaction_missing_amount(client):
-    response = client.post(
-        "/add",
-        json={
-            "type": "expense",
-            "category": "food",
-            "description": "Missing amount test",
-            "date": "2026-06-11",
-        },
-    )
+    bad_transaction = valid_expense()
+    del bad_transaction["amount"]
+
+    response = client.post("/add", json=bad_transaction)
 
     assert response.status_code == 400
 
@@ -56,14 +65,19 @@ def test_add_transaction_missing_amount(client):
     assert "error" in data
 
 
-def test_get_transactions(client):
+def test_get_transactions_returns_saved_transactions(client):
+    client.post("/add", json=valid_expense(description="Groceries test"))
+
     response = client.get("/transactions")
 
     assert response.status_code == 200
-    assert isinstance(response.get_json(), list)
+
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert any(txn["description"] == "Groceries test" for txn in data)
 
 
-def test_delete_transaction(client):
+def test_delete_transaction_by_uuid(client):
     add_response = client.post(
         "/add",
         json={
@@ -84,5 +98,46 @@ def test_delete_transaction(client):
 
     assert delete_response.status_code == 200
 
-    delete_data = delete_response.get_json()
-    assert delete_data["message"] == "Deleted"
+    transactions_response = client.get("/transactions")
+    transactions = transactions_response.get_json()
+
+    assert all(txn["id"] != transaction_id for txn in transactions)
+
+
+def test_delete_transaction_invalid_uuid(client):
+    response = client.delete("/delete/not-a-valid-uuid")
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+    assert "error" in data
+
+
+def test_balance_endpoint(client):
+    client.post("/add", json=valid_income())
+    client.post("/add", json=valid_expense())
+
+    response = client.get("/balance")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert data["income"] == "500.00"
+    assert data["expenses"] == "100.00"
+    assert data["balance"] == "400.00"
+
+
+def test_analytics_endpoint(client):
+    client.post("/add", json=valid_income())
+    client.post("/add", json=valid_expense())
+
+    response = client.get("/analytics")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert "category_totals" in data
+    assert "highest_spending_category" in data
+    assert "monthly_trends" in data
+    assert data["category_totals"]["food"] == "100.00"
+    assert data["highest_spending_category"] == "food"
