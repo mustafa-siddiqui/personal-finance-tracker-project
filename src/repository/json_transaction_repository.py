@@ -37,7 +37,10 @@ class JsonTransactionRepository(TransactionRepositoryInterface):
         return self._transactions[txn_id]
 
     def list_all(self) -> List[Transaction]:
-        return list(self._transactions.values())
+        return sorted(
+            self._transactions.values(),
+            key=lambda txn: (txn.date, str(txn.id)),
+        )
 
     def delete(self, txn_id: UUID) -> None:
         if txn_id not in self._transactions:

@@ -276,3 +276,26 @@ class TestLedgerDelete:
         assert exc_info.value.field == "id"
         mock_repo.delete.assert_not_called()
         mock_repo.save.assert_not_called()
+
+class TestLedgerListAll:
+    def test_list_all_returns_transactions_from_repository(
+        self, ledger: Ledger, mock_repo: MagicMock
+    ) -> None:
+        """list_all() returns whatever the repository returns."""
+        txn_id = UUID("12345678-1234-5678-1234-567812345678")
+        expected = [
+            Transaction(
+                id=txn_id,
+                type=TransactionType.EXPENSE,
+                amount=Decimal("42.50"),
+                category="food",
+                description="Groceries",
+                date=datetime.date(2026, 4, 27),
+            )
+        ]
+        mock_repo.list_all.return_value = expected
+
+        result = ledger.list_all()
+
+        assert result is expected
+        mock_repo.list_all.assert_called_once_with()

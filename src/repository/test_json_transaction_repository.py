@@ -381,3 +381,59 @@ class TestAtomicWrite:
 
         # Original file is unchanged
         assert repo_path.read_bytes() == original_bytes
+
+def test_list_all_returns_all_transactions_sorted_by_date(tmp_path):
+    repo = JsonTransactionRepository(tmp_path / "transactions.json")
+
+    later = Transaction(
+        id=UUID("22222222-2222-2222-2222-222222222222"),
+        type=TransactionType.EXPENSE,
+        amount=Decimal("20.00"),
+        category="food",
+        description="Later transaction",
+        date=datetime.date(2026, 4, 30),
+    )
+
+    earlier = Transaction(
+        id=UUID("11111111-1111-1111-1111-111111111111"),
+        type=TransactionType.INCOME,
+        amount=Decimal("100.00"),
+        category="salary",
+        description="Earlier transaction",
+        date=datetime.date(2026, 4, 1),
+    )
+
+    repo.add(later)
+    repo.add(earlier)
+
+    result = repo.list_all()
+
+    assert result == [earlier, later]
+
+def test_list_all_sorts_same_date_by_id(tmp_path):
+    repo = JsonTransactionRepository(tmp_path / "transactions.json")
+
+    txn_b = Transaction(
+        id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        type=TransactionType.EXPENSE,
+        amount=Decimal("20.00"),
+        category="food",
+        description="B",
+        date=datetime.date(2026, 4, 1),
+    )
+
+    txn_a = Transaction(
+        id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        type=TransactionType.EXPENSE,
+        amount=Decimal("10.00"),
+        category="food",
+        description="A",
+        date=datetime.date(2026, 4, 1),
+    )
+
+    repo.add(txn_b)
+    repo.add(txn_a)
+
+    result = repo.list_all()
+
+    assert result == [txn_a, txn_b]
