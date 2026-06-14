@@ -74,10 +74,12 @@ def get_year_month(txn):
 
 def compute_analytics(transactions):
     category_totals = defaultdict(Decimal)
-    monthly_totals = defaultdict(lambda: {
-        "income": Decimal("0.00"),
-        "expenses": Decimal("0.00"),
-    })
+    monthly_totals = defaultdict(
+        lambda: {
+            "income": Decimal("0.00"),
+            "expenses": Decimal("0.00"),
+        }
+    )
 
     for txn in transactions:
         txn_type = get_transaction_type(txn)
@@ -87,7 +89,6 @@ def compute_analytics(transactions):
         if txn_type == "expense":
             category_totals[txn.category] += amount
             monthly_totals[(year, month)]["expenses"] += amount
-
         elif txn_type == "income":
             monthly_totals[(year, month)]["income"] += amount
 
@@ -108,13 +109,15 @@ def compute_analytics(transactions):
         income = totals["income"]
         expenses = totals["expenses"]
 
-        monthly_trends.append({
-            "year": year,
-            "month": month,
-            "income": f"{income:.2f}",
-            "expenses": f"{expenses:.2f}",
-            "net": f"{income - expenses:.2f}",
-        })
+        monthly_trends.append(
+            {
+                "year": year,
+                "month": month,
+                "income": f"{income:.2f}",
+                "expenses": f"{expenses:.2f}",
+                "net": f"{income - expenses:.2f}",
+            }
+        )
 
     return {
         "category_totals": category_totals_response,
@@ -159,10 +162,12 @@ def create_app(data_path=DATA_PATH):
                 date=data["date"],
             )
 
-            return jsonify({
-                "message": "Transaction added",
-                "transaction": transaction_to_dict(txn),
-            }), 201
+            return jsonify(
+                {
+                    "message": "Transaction added",
+                    "transaction": transaction_to_dict(txn),
+                }
+            ), 201
 
         except Exception as e:
             return jsonify({"error": str(e)}), 400
@@ -172,15 +177,19 @@ def create_app(data_path=DATA_PATH):
         repo.load()
         transactions = ledger.list_all()
 
-        return jsonify([
-            transaction_to_dict(txn)
-            for txn in transactions
-        ])
+        return jsonify(
+            [
+                transaction_to_dict(txn)
+                for txn in transactions
+            ]
+        )
 
     @app.route("/delete/<txn_id>", methods=["DELETE"])
     def delete_transaction(txn_id):
         try:
+            repo.load()
             ledger.delete(UUID(txn_id))
+
             return jsonify({"message": "Deleted"}), 200
 
         except ValueError:
