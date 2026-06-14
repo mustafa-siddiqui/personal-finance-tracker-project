@@ -56,7 +56,7 @@ class Ledger:
 
     # F2 / F4 — signatures left for the team to implement
     def list_all(self) -> List[Transaction]:
-        raise NotImplementedError
+    return self._repo.list_all()
 
     def get(self, txn_id: UUID) -> Transaction:
         """
