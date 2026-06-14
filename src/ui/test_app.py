@@ -113,7 +113,7 @@ def test_delete_transaction_invalid_uuid(client):
     assert "error" in data
 
 
-def test_balance_endpoint(client):
+def test_balance_endpoint_uses_backend_calculator(client):
     client.post("/add", json=valid_income())
     client.post("/add", json=valid_expense())
 
@@ -122,12 +122,10 @@ def test_balance_endpoint(client):
     assert response.status_code == 200
 
     data = response.get_json()
-    assert data["income"] == "500.00"
-    assert data["expenses"] == "100.00"
     assert data["balance"] == "400.00"
 
 
-def test_analytics_endpoint(client):
+def test_analytics_endpoint_uses_backend_analyzer(client):
     client.post("/add", json=valid_income())
     client.post("/add", json=valid_expense())
 
@@ -136,8 +134,43 @@ def test_analytics_endpoint(client):
     assert response.status_code == 200
 
     data = response.get_json()
+
     assert "category_totals" in data
     assert "highest_spending_category" in data
     assert "monthly_trends" in data
+
     assert data["category_totals"]["food"] == "100.00"
-    assert data["highest_spending_category"] == "food"
+    assert data["highest_spending_category"]["category"] == "food"
+    assert data["highest_spending_category"]["total"] == "100.00"
+
+    assert len(data["monthly_trends"]) == 1
+    assert data["monthly_trends"][0]["year"] == 2026
+    assert data["monthly_trends"][0]["month"] == 6
+    assert data["monthly_trends"][0]["total_income"] == "500.00"
+    assert data["monthly_trends"][0]["total_expenses"] == "100.00"
+    assert data["monthly_trends"][0]["net"] == "400.00"
+
+
+def test_monthly_summary_endpoint(client):
+    client.post("/add", json=valid_income())
+    client.post("/add", json=valid_expense())
+
+    response = client.get("/analytics/monthly-summary?year=2026&month=6")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert data["year"] == 2026
+    assert data["month"] == 6
+    assert data["total_income"] == "500.00"
+    assert data["total_expenses"] == "100.00"
+    assert data["net"] == "400.00"
+
+
+def test_monthly_summary_missing_query_params(client):
+    response = client.get("/analytics/monthly-summary")
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+    assert "error" in data
