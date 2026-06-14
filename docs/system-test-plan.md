@@ -149,13 +149,7 @@ Commit `requirements.txt` so other developers receive the same versions on their
 The application has two natural system-level surfaces. Both are exercised in this plan:
 
 - **Backend integration surface.** The application's public Python API: `Ledger`, `BalanceCalculator`, `Analyzer`, `JsonTransactionRepository`. These tests are **automated** in `tests/test_system_backend.py` and run with the rest of the suite via `make test`. They wire the real `Ledger` to the real `JsonTransactionRepository` against a `tmp_path`-scoped JSON file, and exercise F1, F2, F3, F4, F5, F6, F8 end-to-end without any HTTP layer. This is the "without UI" stack referenced throughout this document.
-- **HTTP / UI surface.** The Flask app defined in `src/ui/app.py`. These tests are **manual** at present (no rendered HTML form in v1). The tester issues `curl` requests and records the response body and on-disk side effects in the "Actual Output" column. Because the UI layer has known defects at the time of writing (see §UI status note below), the HTTP rows below are deliberately left for the UI owner to fill in once the UI is repaired.
-
-Splitting the plan this way ensures that work on the backend (F1–F5, F8) is verifiable today and is not blocked by ongoing UI-layer work (F7).
-
-### UI status note
-
-At the time of writing, the UI layer (F7) has architectural defects that prevent several HTTP test cases from executing successfully (`/transactions` references an undefined name; `/delete` uses an integer index instead of a UUID; no `/balance` or `/analytics/*` routes exist). The HTTP test rows below are written against the *intended* contract from `docs/design.md`. They will pass once the UI is repaired. Until then, the backend integration surface gives full system-level coverage of the same functional requirements.
+- **HTTP / UI surface.** The Flask app defined in `src/ui/app.py`. These tests are **manual** at present (no rendered HTML form in v1). The tester issues `curl` requests and records the response body and on-disk side effects in the "Actual Output" column.
 
 ## Use Cases and Test Cases
 
@@ -282,7 +276,7 @@ At the time of writing, the UI layer (F7) has architectural defects that prevent
 
 | # | Test | Inputs | Expected Output | Actual Output |
 |---|------|--------|-----------------|---------------|
-| 4.H1 | Delete existing via HTTP | Record a transaction, then `DELETE /delete/<that-uuid>` | `200 OK`; transaction gone from `GET /transactions` and from JSON file | _to be filled — route currently uses `int:index`_ |
+| 4.H1 | Delete existing via HTTP | Record a transaction, then `DELETE /delete/<that-uuid>` | `200 OK`; transaction gone from `GET /transactions` and from JSON file | _to be filled |
 | 4.H2 | Delete unknown UUID via HTTP | `DELETE /delete/00000000-0000-0000-0000-000000000000` | `404 Not Found`; JSON file unchanged | _to be filled_ |
 | 4.H3 | Delete malformed UUID via HTTP | `DELETE /delete/not-a-uuid` | `400 Bad Request` (or `404` from Flask's `<uuid:>` converter); JSON file unchanged | _to be filled_ |
 
@@ -324,8 +318,6 @@ Validation is exercised at the system level by every UC-1 negative case (1.5–1
 2. Failure raises a typed `ValidationError` with the correct `field`.
 3. No partial write reaches `data/transactions.json` (verified by checking the file does not exist or is unchanged).
 
-The Validator's per-method unit-level coverage is owned by Anas in his unit test report.
-
 ### UC-7 — User interface (F7)
 
 **Actor:** User
@@ -338,7 +330,7 @@ The Validator's per-method unit-level coverage is owned by Anas in his unit test
 | 7.2 | Add form renders | `GET /` and inspect HTML | Body contains a `<form>` for transaction entry with fields for type, amount, category, description, date | _to be filled — no template exists yet_ |
 | 7.3 | Transaction list renders | After recording a transaction, `GET /` | Body lists the recorded transaction with a delete control | _to be filled — no template exists yet_ |
 
-*Note: v1 has no rendered HTML templates; the UI is deferred to Anas. Until templates land, UC-7 cannot be executed and is owned by the UI engineer.*
+*Note: v1 has no rendered HTML templates and as such these tests are not applicable *
 
 ### UC-8 — Analyze spending (F8)
 
@@ -447,4 +439,3 @@ These tests are executed by the UI owner once `src/ui/app.py` is repaired agains
 3. For each `*.H*` row in the use cases above, issue the request with `curl`, observe the response, and inspect `data/transactions.json` where applicable.
 4. Record the actual response body, status code, and on-disk state in the "Actual Output" cell.
 
-A consolidated post-execution result table can be produced by re-running this document with all `_to be filled_` cells populated.
